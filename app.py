@@ -18,11 +18,14 @@ st.markdown('_Data courtesy of @CFB_Data | Original idea by @ConorMcQ5_')
 #cache this function so that streamlit doesn't rerun it everytime a user input is changed
 @st.cache(allow_output_mutation=True)
 def getData():
-    recruits = pd.read_csv(r'C:\Users\5257558\Downloads\recruits.csv')
-    teams = pd.read_csv(r'C:\Users\5257558\Downloads\teams.csv', index_col='school')
+    #read in
+    recruits = pd.read_csv(r'https://raw.githubusercontent.com/BenDavis71/CFB-Recruiting/master/recruits.csv') 
+    teams = pd.read_csv('https://raw.githubusercontent.com/BenDavis71/CFB-Recruiting/master/teams.csv', index_col='school')
+
+    #force the logo string to behave as a list
     teams['logos'] = teams['logos'].apply(lambda x: eval(x))
 
-    #generate list of coaches (alphabetical order with duplicates removed) from dataframe
+    #generate list of teams from dataframe
     teamsList = teams.index.tolist()
     return recruits, teams, teamsList 
 
@@ -54,12 +57,12 @@ info = teams.loc[school]
 color, gradientColor,logo = info[1:]
 logo = logo[0]
 
-
+#groupby states for the remaining rows in order to correctly format the dataframe for map-making
 states = recruits[['stateProvince','name']].groupby('stateProvince', as_index = False).count()
 
 
 
-
+#create map and define colors
 fig = go.Figure(data=go.Choropleth(
     locations=states['stateProvince'],
     z = states['name'],
@@ -68,6 +71,7 @@ fig = go.Figure(data=go.Choropleth(
     marker_line_color='white'
 ))
 
+#update title and map scope
 fig.update_layout(
     title_text = f'{school} {blueString}Recruiting, {years[0]}-{years[1]}',
     title_x=0.5,
@@ -80,6 +84,7 @@ fig.update_layout(
     
 )
 
+#add logo
 fig.add_layout_image(
     dict(
         source=logo,
