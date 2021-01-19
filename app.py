@@ -1,95 +1,96 @@
-import streamlit as st
-import requests
+#!/usr/bin/env python
+# coding: utf-8
+
+
 import numpy as np
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 
 
-st.title('College Football Recruiting')
-st.markdown('_Stats courtesy of @CFB_Data_')
 
-@st.cache
-def Data():
-    response = requests.get(
-        'https://api.collegefootballdata.com/coaches',
-        )
 
-    coaches = pd.io.json.json_normalize(response.json())
+st.title('College Football Recruiting Pipelines')
+st.markdown('_Data courtesy of @CFB_Data | Original idea by @ConorMcQ5_')
 
-    data = pd.DataFrame()
 
-    for i in coaches.index:
-        df = pd.DataFrame(coaches['seasons'][i])
-        df['coach'] = coaches['first_name'][i] + ' ' + coaches['last_name'][i]
-        data = pd.concat([data,df])
+#read-in data that was collected from collegefootballdata.com
+#cache this function so that streamlit doesn't rerun it everytime a user input is changed
+@st.cache(allow_output_mutation=True)
+def getData():
+    recruits = pd.read_csv(r'C:\Users\5257558\Downloads\recruits.csv')
+    teams = pd.read_csv(r'C:\Users\5257558\Downloads\teams.csv', index_col='school')
+    teams['logos'] = teams['logos'].apply(lambda x: eval(x))
 
-    data = data[['school','coach','year']]
+    #generate list of coaches (alphabetical order with duplicates removed) from dataframe
+    teamsList = teams.index.tolist()
+    return recruits, teams, teamsList 
+
+
+recruits, teams, teamsList = getData()
+
+
+#user input for date range
+years = st.slider("Date Range", min_value=2000, max_value=2020, value=(2000, 2020))
+
+#user input for recruit type
+blueChips = st.radio('Blue Chip Filter', ['Blue Chips Only','All Recruits'], index = 1)
+blueString = ''
+
+#user input for team
+school = st.selectbox("Team", teamsList, index = teamsList.index('Florida State'))
+
+
+#filter recruiting dataframe to match user selections
+recruits = recruits[recruits['committedTo'] == school]
+recruits = recruits[recruits['year'].between(years[0],years[1])]
+if blueChips == 'Blue Chips Only':
+    recruits = recruits[recruits['stars'] >= 4]
+    blueString = 'Blue Chip '
+
+
+#get school relevant presentation info
+info = teams.loc[school]
+color, gradientColor,logo = info[1:]
+logo = logo[0]
+
+
+states = recruits[['stateProvince','name']].groupby('stateProvince', as_index = False).count()
+
+
+
+
+fig = go.Figure(data=go.Choropleth(
+    locations=states['stateProvince'],
+    z = states['name'],
+    locationmode = 'USA-states',
+    colorscale = [[0, gradientColor],[1.0, color]],
+    marker_line_color='white'
+))
+
+fig.update_layout(
+    title_text = f'{school} {blueString}Recruiting, {years[0]}-{years[1]}',
+    title_x=0.5,
+    title_y=0.9,
+    font=dict(
+    family='Arial',
+    size=20,
+    ),
+    geo_scope='usa',
     
-#change in future to handle 2020 unknown
-    data = data.query("year > 1999 and year <2020")
-   
-    data.rename(columns={"school": "team"}, inplace = True)
+)
 
-    data = data
-    response = requests.get(
-    'https://api.collegefootballdata.com/recruiting/teams',
+fig.add_layout_image(
+    dict(
+        source=logo,
+        xref="paper", yref="paper",
+        x=.95, y=.1,
+        sizex=0.25, sizey=0.25,
+        xanchor="right", yanchor="bottom"
     )
-
-    recruiting  = pd.read_json(response.text)
-
-    data = data.merge(recruiting, how = 'right', on = ['year','team'] ).sort_values(by = ['year','team'])
-
-    teams = list(list(data.sort_values(by='team')['team'].unique()))
-
-    coaches = list(list(data.sort_values(by='coach')['coach'].unique()))
-
-#groupby.transform to get average for coach and average for team
-
-
-    return [data, teams, coaches]
-
-
-
-df, teams, coaches = Data()
-
-
-
-selectTeams = st.multiselect(
-    "Choose teams",teams, ["Alabama", "Florida State"]
 )
 
-selectCoaches = st.multiselect(
-    "Choose coaches",coaches, ["Nick Saban", "Mike Norvell"]
-)
-if not (selectCoaches or selectTeams):
-    st.error("Please select at least one filter.")
+st.write(fig)
 
-
-df = df.query(("team in @selectTeams or coach in @selectCoaches"))
-
-#checkbox for if you want to divide by coach or not
-#Change to an unknown groupby max min (i.e. Unknown
-#df['coach'] = df['coach'].fillna('Unknown')
-df = df[~df['coach'].isna()]
-
-#df['unique'] = df['coach'] + ' - ' + df['team']
-
-if len(selectTeams) < 2:
-    fig = px.line(df, x="year", y="points", color = 'coach',hover_name="coach", text = "coach", line_group = 'team', line_dash = 'coach')
-   #fig = px.line(df, x="year", y="points", color = 'team',hover_name="coach", line_group = 'team', title = ', '.join(selectCoaches) + ' Recruiting')
-else:
-    fig = px.line(df, x="year", y="points", color = 'team')
-
-fig.update_layout({
-'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-'paper_bgcolor': 'rgba(0, 0, 0, 0)',
-})
-
-fig.update_traces(textposition='top left')
-
-fig.update_xaxes(showline=True, linewidth=.5, linecolor='grey')
-fig.update_yaxes(showline=True, linewidth=.5, linecolor='grey')
-
-
-fig
-
+st.markdown('___')
+st.markdown('Created by [Ben Davis](https://github.com/BenDavis71/)')
