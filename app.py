@@ -32,9 +32,11 @@ def getData():
 
 recruits, teams, teamsList = getData()
 
+#find the latest year of recruiting info
+maxYear = recruits['year'].max()
 
 #user input for date range
-years = st.slider("Date Range", min_value=2000, max_value=2020, value=(2000, 2020))
+years = st.slider("Date Range", min_value=2000, max_value=maxYear, value=(2000, maxYear))
 
 #user input for recruit type
 blueChips = st.radio('Blue Chip Filter', ['Blue Chips Only','All Recruits'], index = 1)
