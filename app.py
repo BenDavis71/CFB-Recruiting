@@ -33,7 +33,7 @@ def getData():
 recruits, teams, teamsList = getData()
 
 #find the latest year of recruiting info
-maxYear = recruits['year'].max()
+maxYear = int(recruits['year'].max())
 
 #user input for date range
 years = st.slider("Date Range", min_value=2000, max_value=maxYear, value=(2000, maxYear))
